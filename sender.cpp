@@ -116,9 +116,8 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
         bool ackReceived = false;
 
         while (retries < MAX_RETRIES && !ackReceived) {
-            // 发送数据包
-
-            sendPacket(sock, recvAddr, pkt, sendLogFile);
+            
+            sendPacket(sock, recvAddr, pkt, sendLogFile);// 发送数据包
 
             // 等待ACK：设置计时器
             Packet ackPkt;

@@ -25,7 +25,7 @@ std::string recvFilePath = "recvfile/"; // 接收文件的存储路径
 uint64_t totalSentBytes = 0;// 发送端传输的总字节数
 uint64_t totalRecvBytes = 0;// 发送端接收到的总字节数
 
-// 定义数据包格式
+// 数据包格式
 struct Packet {
     uint32_t seqNum;       // 序列号
     uint32_t ackNum;       // 确认号
