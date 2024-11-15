@@ -11,7 +11,7 @@ void initialSock(SOCKET &sock, sockaddr_in& recvAddr)
         std::cerr << "Socket creation failed!" << std::endl;
         exit(-1);
     }
-
+    
     sockaddr_in sendAddr;
     memset(&sendAddr, 0, sizeof(sendAddr));
     sendAddr.sin_family = AF_INET;
