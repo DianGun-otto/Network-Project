@@ -141,7 +141,7 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
 
                 // ACK确认机制
                 if (recvLen > 0) {
-                    if (ackPkt.seqNum == seqNum) {
+                    if (ackPkt.ackNum == seqNum) {
                         ackNum = ackPkt.ackNum;  // 更新ACK号
                         seqNum++;
                         ackReceived = true;
