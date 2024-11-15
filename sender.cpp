@@ -110,6 +110,8 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
         pkt.length = bytesRead;
         memcpy(pkt.data, buffer, bytesRead);
 
+        totalSentBytes += pkt.length;  // 累计传输的数据字节数
+
         int retries = 0;
         bool ackReceived = false;
 
@@ -171,7 +173,6 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
         }   
     }
     std::cout << "File " << fileName << " transmission completed!" << std::endl;
-    //logFile.close();
 }
 
 int main(int argc, char* argv[]) 
@@ -180,17 +181,22 @@ int main(int argc, char* argv[])
         std::cerr << "Usage: sender <file1> <file2> ... <fileN>" << std::endl;
         return -1;
     }
-    
+
     sendLogFile = std::ofstream("sendLog.txt", std::ios::trunc);
     SOCKET sock;
     sockaddr_in recvAddr;
     initialSock(sock, recvAddr);
-
+    
     // 建立连接
     if (!senderConnect(sock, recvAddr)) {
         std::cerr << "Failed to establish connection" << std::endl;
         return -1;
     }
+    
+    LARGE_INTEGER frequency;
+    QueryPerformanceFrequency(&frequency);
+    LARGE_INTEGER start;
+    QueryPerformanceCounter(&start);// 开始计时
     // 逐个发送文件
     for (int i = 1; i < argc; i++) {
         std::string testFilename = argv[i];
@@ -202,17 +208,25 @@ int main(int argc, char* argv[])
         // 关闭文件后继续下一个文件传输
         inputFile.close();
     }
-
+    LARGE_INTEGER end;
+    QueryPerformanceCounter(&end);// 获取结束时间
+    LARGE_INTEGER elapsed;// 计算传输时间
+    elapsed.QuadPart = end.QuadPart - start.QuadPart;
+    double duration = (elapsed.QuadPart * 1000.0) / frequency.QuadPart;
+    double throughput = static_cast<double>(totalSentBytes/1e6) / (duration/1e3);  // 计算吞吐率,单位：Mbps
     // 断开连接
     if (!senderDisconnect(sock, recvAddr)) {
     std::cerr << "Failed to destroy connection" << std::endl;
     return -1;
     }
-
     sendLogFile.close();
-    // 关闭套接字
-    closesocket(sock);
+    closesocket(sock);// 关闭套接字
     WSACleanup();
+
+    //日志输出
+    std::cout << "Sending duration time: " << duration << "ms" << std::endl;
+    std::cout << "Total bytes transmitted: " << totalSentBytes << " bytes" << std::endl;
+    std::cout << "Send Throughput: " << throughput << " Mbps" << std::endl;
     std::cout << "Sender finished, socket closed." << std::endl;
     return 0;
 }

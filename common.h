@@ -22,6 +22,8 @@
 std::ofstream sendLogFile, recvLogFile;
 std::string testFilePath = "testfile/"; // 测试文件的存储路径
 std::string recvFilePath = "recvfile/"; // 接收文件的存储路径
+uint64_t totalSentBytes = 0;// 发送端传输的总字节数
+uint64_t totalRecvBytes = 0;// 发送端接收到的总字节数
 
 // 定义数据包格式
 struct Packet {
@@ -100,7 +102,7 @@ void sendPacket(SOCKET sock, sockaddr_in &sockaddr_in, Packet &pkt, std::ofstrea
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
     LARGE_INTEGER start;
-    QueryPerformanceCounter(&start);
+    QueryPerformanceCounter(&start);// 获取开始时间
     int sentBytes = sendto(sock, (char *)&pkt, sizeof(pkt), 0, (sockaddr *)&sockaddr_in, sizeof(sockaddr_in));  
     LARGE_INTEGER end;
     QueryPerformanceCounter(&end);// 获取结束时间

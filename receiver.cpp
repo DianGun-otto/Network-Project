@@ -88,7 +88,7 @@ void receiveFile(SOCKET sock)
             }
 
             // 接收文件数据
-            else {              
+            else {            
                 // 判断是否为新文件传输
                 if (pkt.seqNum == 1) {
                     // 获取文件名
@@ -109,7 +109,7 @@ void receiveFile(SOCKET sock)
                 // 写数据到文件
                 if (pkt.seqNum == expectedSeqNum) {
                     outputFile.write(pkt.data, pkt.length);
-
+                    totalRecvBytes += pkt.length;  // 累计接收的数据字节数
                     // 发送ACK
                     Packet ackPkt;
                     ackPkt.seqNum = pkt.seqNum;
@@ -128,6 +128,7 @@ void receiveFile(SOCKET sock)
 int main() 
 { 
     recvLogFile = std::ofstream("recvLog.txt", std::ios::trunc);
+    
     SOCKET sock = createSock();
     // 建立连接
     if (!receiverConnect(sock)) {
@@ -135,11 +136,25 @@ int main()
         return -1;
     }
     
-    receiveFile(sock);
+    LARGE_INTEGER frequency;
+    QueryPerformanceFrequency(&frequency);
+    LARGE_INTEGER start;
+    QueryPerformanceCounter(&start);// 开始计时
+    receiveFile(sock); // 接收文件
+    LARGE_INTEGER end;// 获取结束时间
+    QueryPerformanceCounter(&end);
+    LARGE_INTEGER elapsed;// 计算接收时间
+    elapsed.QuadPart = end.QuadPart - start.QuadPart;
+    double duration = (elapsed.QuadPart * 1000.0) / frequency.QuadPart;
+    double throughput = static_cast<double>(totalRecvBytes/1e6) / (duration/1e3);  // 计算吞吐率,单位：Mbps
     recvLogFile.close();
     // 关闭套接字
     closesocket(sock);
     WSACleanup();
+
+    std::cout << "Receiving duration time: " << duration << "ms" << std::endl;
+    std::cout << "Total bytes received: " << totalRecvBytes << " bytes" << std::endl;
+    std::cout << "Recv Throughput: " << throughput << " Mbps" << std::endl;
     std::cout << "Receiver finished, socket closed." << std::endl;
     return 0;
 }
