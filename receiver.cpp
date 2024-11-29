@@ -90,7 +90,7 @@ void receiveFile(SOCKET sock)
             // 接收文件数据
             else {            
                 // 判断是否为新文件传输
-                if (pkt.seqNum == 1) {
+                if (currentFileName != pkt.filename) {
                     // 获取文件名
                     currentFileName = pkt.filename;
                     // 拼接文件路径
@@ -106,7 +106,7 @@ void receiveFile(SOCKET sock)
                     std::cout << "Created new file: " << currentFileName << std::endl;
                 }
 
-                // 写数据到文件
+                // 将数据写入文件
                 if (pkt.seqNum == expectedSeqNum) {
                     outputFile.write(pkt.data, pkt.length);
                     totalRecvBytes += pkt.length;  // 累计接收的数据字节数
@@ -118,7 +118,7 @@ void receiveFile(SOCKET sock)
                     sendPacket(sock, fromAddr, ackPkt, recvLogFile); 
                     expectedSeqNum++;
                 } else {
-                    std::cerr << "Out of order packet received. Expected SeqNum: " << expectedSeqNum << " but got: " << pkt.seqNum << std::endl;
+                    continue; //丢弃重复数据包
                 }
             }
         }
