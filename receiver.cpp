@@ -50,7 +50,7 @@ bool receiverConnect(SOCKET &sock) {
         // 等待 ACK
         recvLen = recvPacket(sock, fromAddr, synPkt, recvLogFile);
         if (recvLen > 0 && synPkt.ack && !synPkt.syn) {
-            std::cout << "Connection established" << std::endl;
+            std::cout << "Received ACK, Connection established" << std::endl;
             return true;
         }
     }
@@ -106,7 +106,7 @@ void receiveFile(SOCKET sock)
                     std::cout << "Created new file: " << currentFileName << std::endl;
                 }
 
-                // 写数据到文件
+                // 将数据写入文件
                 if (pkt.seqNum == expectedSeqNum) {
                     outputFile.write(pkt.data, pkt.length);
                     totalRecvBytes += pkt.length;  // 累计接收的数据字节数
@@ -118,8 +118,7 @@ void receiveFile(SOCKET sock)
                     sendPacket(sock, fromAddr, ackPkt, recvLogFile); 
                     expectedSeqNum++;
                 } else {
-                    continue; // 丢弃重复数据包
-                    //std::cerr << "Out of order packet received. Expected SeqNum: " << expectedSeqNum << " but got: " << pkt.seqNum << std::endl;
+                    continue; //丢弃重复数据包
                 }
             }
         }

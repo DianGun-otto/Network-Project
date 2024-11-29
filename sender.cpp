@@ -96,83 +96,110 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
 {
     uint32_t seqNum = 1;
     uint32_t ackNum = 0;
-    char buffer[1024];
+    char buffer[BUFFER];
     Packet pkt;
-    
+
     // 传输文件名（仅在第一次发送时）
     strncpy(pkt.filename, fileName.c_str(), sizeof(pkt.filename) - 1);
     pkt.filename[sizeof(pkt.filename) - 1] = '\0';  // 确保文件名以NULL结尾
 
-    while (inputFile.read(buffer, sizeof(buffer)) || inputFile.gcount() > 0) {
-        int bytesRead = inputFile.gcount();
-        pkt.seqNum = seqNum;
-        pkt.ackNum = ackNum;
-        pkt.length = bytesRead;
-        memcpy(pkt.data, buffer, bytesRead);
+    int retries = 0;
+    bool ackReceived = false;
 
-        totalSentBytes += pkt.length;  // 累计传输的数据字节数
+    // 循环发送数据
+    while (inputFile) {
+        std::vector<Packet> windowPackets;
 
-        int retries = 0;
-        bool ackReceived = false;
+        // 构造一个数据包窗口，直到文件末尾
+        for (uint32_t i = 0; i < windowSize && (inputFile.read(buffer, sizeof(buffer)) || inputFile.gcount() > 0); i++) {
+            int bytesRead = inputFile.gcount();
+            pkt.seqNum = seqNum + i;
+            pkt.ackNum = ackNum + i;
+            pkt.length = bytesRead;
+            memcpy(pkt.data, buffer, bytesRead);
 
-        while (retries < MAX_RETRIES && !ackReceived) {
-            
-            sendPacket(sock, recvAddr, pkt, sendLogFile);// 发送数据包
+            windowPackets.push_back(pkt);
+            totalSentBytes += pkt.length;  // 累计传输的数据字节数
+        }
 
-            // 等待ACK：设置计时器
+        // 发送窗口内的所有数据包
+        for (auto &pkt : windowPackets) {
+            sendPacket(sock, recvAddr, pkt, sendLogFile);  // 发送数据包
+        }
+
+        // 等待确认（直到所有数据包发送完才开始接收ACK）
+        int windowBase = seqNum;
+        int ackCount = 0;  // 用于统计接收到的ACK数量
+
+        // 等待ACK的过程
+        while (ackCount < windowPackets.size() && retries < MAX_RETRIES) {
             Packet ackPkt;
             sockaddr_in fromAddr;
             bool timedOut = false;
-
-            // 等待ACK && 超时重传机制
             LARGE_INTEGER frequency;
             QueryPerformanceFrequency(&frequency);
             LARGE_INTEGER start;
-            QueryPerformanceCounter(&start);// 获取开始时间
+            QueryPerformanceCounter(&start);  // 获取开始时间
 
+            // 只在发送完所有数据包后开始接收ACK
             while (true) {
                 int recvLen = recvPacket(sock, fromAddr, ackPkt, sendLogFile);
                 LARGE_INTEGER end;
-                QueryPerformanceCounter(&end);// 获取结束时间
+                QueryPerformanceCounter(&end);  // 获取结束时间
                 LARGE_INTEGER elapsed;
                 elapsed.QuadPart = end.QuadPart - start.QuadPart;
                 double duration = (elapsed.QuadPart * 1000.0) / frequency.QuadPart;
 
                 // ACK确认机制
                 if (recvLen > 0) {
-                    if (ackPkt.ackNum == seqNum) {
+                    // 如果收到的是预期范围内的ACK
+                    if (ackPkt.ackNum >= windowBase && ackPkt.ackNum < windowBase + windowPackets.size()) {
                         ackNum = ackPkt.ackNum;  // 更新ACK号
-                        seqNum++;
-                        ackReceived = true;
-                        break;
-                    }
-                    // 接收到的ACK序号不一致，说明接收错误，重新传输
-                    else {
-                        std::cout << "Received out-of-order ACK. Expected: " << seqNum << " but got: " << ackPkt.seqNum << std::endl;
+                        seqNum = ackPkt.ackNum + 1;
+                        windowBase = ackPkt.ackNum + 1;  // 滑动窗口
+                        ackCount++;
+                        // 如果收到了足够的ACK，跳出等待
+                        if (ackCount >= windowPackets.size()) {
+                            break;
+                        }
+                    } else {
+                        std::cout << "Received out-of-order ACK. Expected: " << windowBase << " but got: " << ackPkt.ackNum << std::endl;
+                        //return;  // 错误的ACK，退出
                     }
                 }
 
                 // 超时判断
                 if (duration > TIMEOUT_DURATION) {
-                    std::cout << "Timeout waiting for ACK. Retransmitting packet..." << std::endl;
+                    std::cout << "Timeout waiting for ACK. Retransmitting window..." << std::endl;
                     timedOut = true;
                     break;
                 }
             }
 
-            // 超时且未接收到ACK确认
-            if (!ackReceived && timedOut) {
+            if (timedOut) {
                 retries++;
-                // 重传次数已达到最大重传次数
-                if (retries >= MAX_RETRIES) {
-                    std::cerr << "Max retries reached. File transmission failed." << std::endl;
-                    return; // 终止传输，认为传输失败
+                for (auto &pkt : windowPackets) {
+                    sendPacket(sock, recvAddr, pkt, sendLogFile);  // 重传数据包
                 }
+            } else {
+                break;
             }
-        }   
+        }
+
+        if (retries >= MAX_RETRIES) {
+            std::cerr << "Max retries reached. File transmission failed." << std::endl;
+            return;  // 终止传输
+        }
+
+        // 如果文件已经读取完，跳出循环
+        if (inputFile.eof() && ackCount == windowPackets.size()) {
+            break;
+        }
     }
+
     std::cout << "File " << fileName << " transmission completed!" << std::endl;
 }
+
 
 int main(int argc, char* argv[]) 
 {
