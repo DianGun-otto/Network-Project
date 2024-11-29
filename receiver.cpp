@@ -50,7 +50,7 @@ bool receiverConnect(SOCKET &sock) {
         // 等待 ACK
         recvLen = recvPacket(sock, fromAddr, synPkt, recvLogFile);
         if (recvLen > 0 && synPkt.ack && !synPkt.syn) {
-            std::cout << "Connection established" << std::endl;
+            std::cout << "Received ACK, Connection established" << std::endl;
             return true;
         }
     }
