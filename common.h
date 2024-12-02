@@ -93,6 +93,7 @@ void logInfo(std::ofstream &logFile, const std::string& message, Packet& pkt, do
                 << ", SeqNum: " << pkt.seqNum 
                 << ", AckNum: " << pkt.ackNum
                 << ", Length: " << pkt.length
+                << ", windowSize: " << windowSize
                 << ", Checksum: " << pkt.checksum
                  << ", ";
     }
