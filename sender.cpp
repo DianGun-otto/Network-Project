@@ -91,7 +91,6 @@ bool senderDisconnect(SOCKET &sock, sockaddr_in& recvAddr)
     return false;
 }
 
-// 发送文件
 void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, const std::string& fileName)
 {
     uint32_t seqNum = 1;
@@ -105,13 +104,19 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
 
     int retries = 0;
     bool ackReceived = false;
+    
+    // Reno 拥塞控制变量
+    cwnd = 1; // 拥塞窗口，初始为 1
+    ssthresh = SSTHRESH;  // 初始的慢启动阈值
+    uint32_t dupAckCount = 0;  // 用于跟踪重复ACK的次数
+    bool fastRetransmitFlag = false; // 快速重传标志
 
     // 循环发送数据
     while (inputFile) {
         std::vector<Packet> windowPackets;
 
         // 构造一个数据包窗口，直到文件末尾
-        for (uint32_t i = 0; i < windowSize && (inputFile.read(buffer, sizeof(buffer)) || inputFile.gcount() > 0); i++) {
+        for (uint32_t i = 0; i < cwnd && (inputFile.read(buffer, sizeof(buffer)) || inputFile.gcount() > 0); i++) {
             int bytesRead = inputFile.gcount();
             pkt.seqNum = seqNum + i;
             pkt.ackNum = ackNum + i;
@@ -140,7 +145,7 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
             QueryPerformanceFrequency(&frequency);
             LARGE_INTEGER start;
             QueryPerformanceCounter(&start);  // 获取开始时间
-
+            
             // 只在发送完所有数据包后开始接收ACK
             while (true) {
                 int recvLen = recvPacket(sock, fromAddr, ackPkt, sendLogFile);
@@ -158,13 +163,32 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
                         seqNum = ackPkt.ackNum + 1;
                         windowBase = ackPkt.ackNum + 1;  // 滑动窗口
                         ackCount++;
+
+                        // 慢启动阶段
+                        if (cwnd < ssthresh) {
+                            cwnd++;  // 慢启动阶段，cwnd每接收到一个ACK就增加1
+                        } 
+
                         // 如果收到了足够的ACK，跳出等待
                         if (ackCount >= windowPackets.size()) {
+                            if(cwnd >= ssthresh && cwnd < MAX_WINDOW_SIZE) {
+                                cwnd++; // 拥塞避免阶段,每个RTT,cwnd加1
+                            }
                             break;
                         }
-                    } else {
+                    } 
+                    // 如果收到的是重复ACK，执行快速重传
+                    else if (ackPkt.ackNum == ackNum) {
+                        dupAckCount++;
+                        if (dupAckCount >= 3) {
+                            std::cout << "Fast retransmit triggered. Retransmitting window." << std::endl;
+                            fastRetransmitFlag = true;
+                            break;
+                        }
+                    } 
+
+                    else {
                         std::cout << "Received out-of-order ACK. Expected: " << windowBase << " but got: " << ackPkt.ackNum << std::endl;
-                        //return;  // 错误的ACK，退出
                     }
                 }
 
@@ -176,11 +200,16 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
                 }
             }
 
-            if (timedOut) {
+            if (timedOut || fastRetransmitFlag) {
                 retries++;
+                ssthresh = cwnd/2; // 更新ssthresh为cwnd的一半
                 for (auto &pkt : windowPackets) {
-                    sendPacket(sock, recvAddr, pkt, sendLogFile);  // 重传数据包
+                    //if (pkt.seqNum > ackNum)  // 重传未被确认的数据包
+                        sendPacket(sock, recvAddr, pkt, sendLogFile);
                 }
+                cwnd = 1; // 回到慢启动阶段
+                dupAckCount = 0;  // 重置重复ACK计数器
+                fastRetransmitFlag = false;
             } else {
                 break;
             }
@@ -199,6 +228,7 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
 
     std::cout << "File " << fileName << " transmission completed!" << std::endl;
 }
+
 
 
 int main(int argc, char* argv[]) 
