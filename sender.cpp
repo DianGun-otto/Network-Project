@@ -102,7 +102,7 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
     strncpy(pkt.filename, fileName.c_str(), sizeof(pkt.filename) - 1);
     pkt.filename[sizeof(pkt.filename) - 1] = '\0';  // 确保文件名以NULL结尾
 
-    int retries = 0;
+    //int retries = 0;
     bool ackReceived = false;
     
     // Reno 拥塞控制变量
@@ -137,7 +137,7 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
         int ackCount = 0;  // 用于统计接收到的ACK数量
 
         // 等待ACK的过程
-        while (ackCount < windowPackets.size() && retries < MAX_RETRIES) {
+        while (ackCount < windowPackets.size()) {
             Packet ackPkt;
             sockaddr_in fromAddr;
             bool timedOut = false;
@@ -201,7 +201,6 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
             }
 
             if (timedOut || fastRetransmitFlag) {
-                retries++;
                 ssthresh = cwnd/2; // 更新ssthresh为cwnd的一半
                 for (auto &pkt : windowPackets) {
                     //if (pkt.seqNum > ackNum)  // 重传未被确认的数据包
@@ -215,10 +214,10 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
             }
         }
 
-        if (retries >= MAX_RETRIES) {
-            std::cerr << "Max retries reached. File transmission failed." << std::endl;
-            return;  // 终止传输
-        }
+        // if (retries >= MAX_RETRIES) {
+        //     std::cerr << "Max retries reached. File transmission failed." << std::endl;
+        //     return;  // 终止传输
+        // }
 
         // 如果文件已经读取完，跳出循环
         if (inputFile.eof() && ackCount == windowPackets.size()) {
