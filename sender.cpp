@@ -103,7 +103,6 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
     strncpy(pkt.filename, fileName.c_str(), sizeof(pkt.filename) - 1);
     pkt.filename[sizeof(pkt.filename) - 1] = '\0';  // 确保文件名以NULL结尾
 
-    int retries = 0;
     bool ackReceived = false;
 
     // 循环发送数据
@@ -132,7 +131,7 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
         int ackCount = 0;  // 用于统计接收到的ACK数量
 
         // 等待ACK的过程
-        while (ackCount < windowPackets.size() && retries < MAX_RETRIES) {
+        while (ackCount < windowPackets.size()) {
             Packet ackPkt;
             sockaddr_in fromAddr;
             bool timedOut = false;
@@ -177,18 +176,12 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
             }
 
             if (timedOut) {
-                retries++;
                 for (auto &pkt : windowPackets) {
                     sendPacket(sock, recvAddr, pkt, sendLogFile);  // 重传数据包
                 }
             } else {
                 break;
             }
-        }
-
-        if (retries >= MAX_RETRIES) {
-            std::cerr << "Max retries reached. File transmission failed." << std::endl;
-            return;  // 终止传输
         }
 
         // 如果文件已经读取完，跳出循环
