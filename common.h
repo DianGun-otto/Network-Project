@@ -17,7 +17,7 @@
 #define SendPORT 12345
 #define RecvIP "127.0.0.1"
 #define RecvPORT 8080
-#define TIMEOUT_DURATION 1 // 重传等待时间，单位：ms
+#define TIMEOUT_DURATION 0.5 // 重传等待时间，单位：ms
 #define BUFFER 1024 // 数据大小，单位:byte
 #define windowSize 16 // 滑动窗口大小
 

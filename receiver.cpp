@@ -114,7 +114,6 @@ void receiveFile(SOCKET sock)
                     Packet ackPkt;
                     ackPkt.seqNum = pkt.seqNum;
                     ackPkt.ackNum = pkt.ackNum + 1;
-                    //ackPkt.ack = true;
                     sendPacket(sock, fromAddr, ackPkt, recvLogFile); 
                     expectedSeqNum++;
                 } else {

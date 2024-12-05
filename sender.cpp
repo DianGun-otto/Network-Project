@@ -177,7 +177,8 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
 
             if (timedOut) {
                 for (auto &pkt : windowPackets) {
-                    sendPacket(sock, recvAddr, pkt, sendLogFile);  // 重传数据包
+                    if(pkt.seqNum > ackNum)// 累计确认:重传未收到ACK的数据包(并非所有数据包都需要重传)
+                        sendPacket(sock, recvAddr, pkt, sendLogFile);  
                 }
             } else {
                 break;
