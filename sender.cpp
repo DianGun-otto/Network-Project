@@ -203,7 +203,7 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
             if (timedOut || fastRetransmitFlag) {
                 ssthresh = cwnd/2; // 更新ssthresh为cwnd的一半
                 for (auto &pkt : windowPackets) {
-                    //if (pkt.seqNum > ackNum)  // 重传未被确认的数据包
+                    if (pkt.seqNum > ackNum)  // 重传未被确认的数据包
                         sendPacket(sock, recvAddr, pkt, sendLogFile);
                 }
                 cwnd = 1; // 回到慢启动阶段
