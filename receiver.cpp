@@ -118,7 +118,12 @@ void receiveFile(SOCKET sock)
                     sendPacket(sock, fromAddr, ackPkt, recvLogFile); 
                     expectedSeqNum++;
                 } else {
-                    continue; //丢弃重复数据包
+                    // 发送期望得到的ACK
+                    Packet ackPkt;
+                    ackPkt.seqNum = expectedSeqNum;
+                    ackPkt.ackNum = expectedSeqNum;
+                    //ackPkt.ack = true;
+                    sendPacket(sock, fromAddr, ackPkt, recvLogFile); 
                 }
             }
         }
@@ -158,3 +163,4 @@ int main()
     std::cout << "Receiver finished, socket closed." << std::endl;
     return 0;
 }
+

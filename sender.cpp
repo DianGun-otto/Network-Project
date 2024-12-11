@@ -105,7 +105,7 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
     //int retries = 0;
     bool ackReceived = false;
     
-    // Reno 拥塞控制变量
+    // 拥塞控制变量
     cwnd = 1; // 拥塞窗口，初始为 1
     ssthresh = SSTHRESH;  // 初始的慢启动阈值
     uint32_t dupAckCount = 0;  // 用于跟踪重复ACK的次数
@@ -172,7 +172,7 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
                         // 如果收到了足够的ACK，跳出等待
                         if (ackCount >= windowPackets.size()) {
                             if(cwnd >= ssthresh && cwnd < MAX_WINDOW_SIZE) {
-                                cwnd++; // 拥塞避免阶段,每个RTT,cwnd加1
+                                cwnd++; // 拥塞避免阶段,cwnd线性增长
                             }
                             break;
                         }
@@ -201,11 +201,12 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
             }
 
             if (timedOut || fastRetransmitFlag) {
-                ssthresh = cwnd/2; // 更新ssthresh为cwnd的一半
                 for (auto &pkt : windowPackets) {
                     if (pkt.seqNum > ackNum)  // 重传未被确认的数据包
                         sendPacket(sock, recvAddr, pkt, sendLogFile);
                 }
+                // 快速恢复阶段
+                ssthresh = cwnd/2; // 更新ssthresh为cwnd的一半
                 cwnd = 1; // 回到慢启动阶段
                 dupAckCount = 0;  // 重置重复ACK计数器
                 fastRetransmitFlag = false;
