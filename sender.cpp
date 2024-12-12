@@ -145,7 +145,7 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
             QueryPerformanceFrequency(&frequency);
             LARGE_INTEGER start;
             QueryPerformanceCounter(&start);  // 获取开始时间
-            
+  
             // 只在发送完所有数据包后开始接收ACK
             while (true) {
                 int recvLen = recvPacket(sock, fromAddr, ackPkt, sendLogFile);
@@ -171,7 +171,7 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
 
                         // 如果收到了足够的ACK，跳出等待
                         if (ackCount >= windowPackets.size()) {
-                            if(cwnd >= ssthresh && cwnd < MAX_WINDOW_SIZE) {
+                            if(cwnd >= ssthresh) {
                                 cwnd++; // 拥塞避免阶段,cwnd线性增长
                             }
                             break;
@@ -181,7 +181,8 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
                     else if (ackPkt.ackNum == ackNum) {
                         dupAckCount++;
                         if (dupAckCount >= 3) {
-                            std::cout << "Fast retransmit triggered. Retransmitting window." << std::endl;
+                            //std::cout << "Fast retransmit triggered. Retransmitting window." << std::endl;
+                            sendLogFile << "Fast retransmit triggered. Retransmitting window." << std::endl;
                             fastRetransmitFlag = true;
                             break;
                         }
@@ -194,7 +195,8 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
 
                 // 超时判断
                 if (duration > TIMEOUT_DURATION) {
-                    std::cout << "Timeout waiting for ACK. Retransmitting window..." << std::endl;
+                    //std::cout << "Timeout waiting for ACK. Retransmitting window..." << std::endl;
+                    sendLogFile << "Timeout waiting for ACK. Retransmitting window..." << std::endl;
                     timedOut = true;
                     break;
                 }

@@ -20,8 +20,7 @@
 #define MAX_RETRIES 5 // 最大重传次数
 #define TIMEOUT_DURATION 0.5 // 重传等待时间，单位：ms
 #define BUFFER 1024 // 数据大小，单位:byte
-#define SSTHRESH 8 // 阈值ssthresh
-#define MAX_WINDOW_SIZE 16 // 最大阈值窗口大小
+#define SSTHRESH 16 // 阈值ssthresh
 
 uint32_t cwnd = 1; // 拥塞窗口，初始为 1
 uint32_t ssthresh = SSTHRESH; // 初始的慢启动阈值
@@ -97,6 +96,7 @@ void logInfo(std::ofstream &logFile, const std::string& message, Packet& pkt, do
                 << ", AckNum: " << pkt.ackNum
                 << ", Length: " << pkt.length
                 << ", cwndSize: " << cwnd
+                << ", ssthresh: " << ssthresh
                 << ", Checksum: " << pkt.checksum
                  << ", ";
     }
