@@ -103,6 +103,10 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
     strncpy(pkt.filename, fileName.c_str(), sizeof(pkt.filename) - 1);
     pkt.filename[sizeof(pkt.filename) - 1] = '\0';  // 确保文件名以NULL结尾
 
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+
     while (inputFile.read(buffer, sizeof(buffer)) || inputFile.gcount() > 0) {
         int bytesRead = inputFile.gcount();
         pkt.seqNum = seqNum;
@@ -115,9 +119,14 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
         int retries = 0;
         bool ackReceived = false;
 
-        while (retries < MAX_RETRIES && !ackReceived) {
-            
-            sendPacket(sock, recvAddr, pkt, sendLogFile);// 发送数据包
+        while (!ackReceived) {
+
+            // 模拟丢包
+            if (dis(gen) < lossRate) {
+                sendLogFile << "Simulating packet loss for seqNum " << seqNum << std::endl;
+                continue;
+            } else
+                sendPacket(sock, recvAddr, pkt, sendLogFile);// 发送数据包
 
             // 等待ACK：设置计时器
             Packet ackPkt;
@@ -129,6 +138,9 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
             QueryPerformanceFrequency(&frequency);
             LARGE_INTEGER start;
             QueryPerformanceCounter(&start);// 获取开始时间
+
+            // 延时模拟
+            std::this_thread::sleep_for(std::chrono::microseconds(delay));
 
             while (true) {
                 int recvLen = recvPacket(sock, fromAddr, ackPkt, sendLogFile);
@@ -148,25 +160,15 @@ void sendFile(SOCKET sock, sockaddr_in& recvAddr, std::ifstream& inputFile, cons
                     }
                     // 接收到的ACK序号不一致，说明接收错误，重新传输
                     else {
-                        std::cout << "Received out-of-order ACK. Expected: " << seqNum << " but got: " << ackPkt.seqNum << std::endl;
+                        sendLogFile << "Received out-of-order ACK. Expected: " << seqNum << " but got: " << ackPkt.seqNum << std::endl;
                     }
                 }
 
                 // 超时判断
                 if (duration > TIMEOUT_DURATION) {
-                    std::cout << "Timeout waiting for ACK. Retransmitting packet..." << std::endl;
+                    sendLogFile << "Timeout waiting for ACK. Retransmitting packet..." << std::endl;
                     timedOut = true;
                     break;
-                }
-            }
-
-            // 超时且未接收到ACK确认
-            if (!ackReceived && timedOut) {
-                retries++;
-                // 重传次数已达到最大重传次数
-                if (retries >= MAX_RETRIES) {
-                    std::cerr << "Max retries reached. File transmission failed." << std::endl;
-                    return; // 终止传输，认为传输失败
                 }
             }
         }   

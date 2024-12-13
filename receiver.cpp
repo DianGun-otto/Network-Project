@@ -119,7 +119,6 @@ void receiveFile(SOCKET sock)
                     expectedSeqNum++;
                 } else {
                     continue; // 丢弃重复数据包
-                    //std::cerr << "Out of order packet received. Expected SeqNum: " << expectedSeqNum << " but got: " << pkt.seqNum << std::endl;
                 }
             }
         }

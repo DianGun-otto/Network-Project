@@ -9,6 +9,9 @@
 #include <thread>
 #include <ctime>
 #include <vector>
+#include <thread>
+#include <random>
+#include <chrono>
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -16,8 +19,10 @@
 #define SendPORT 12345
 #define RecvIP "127.0.0.1"
 #define RecvPORT 8080
-#define MAX_RETRIES 5 // 最大重传次数
-#define TIMEOUT_DURATION 0.1 // 重传等待时间，单位：ms
+#define TIMEOUT_DURATION 1 // 重传等待时间，单位：ms
+
+float lossRate = 0.1;  // 丢包率
+int delay = 0;      // 每个数据包模拟延时,单位：us
 
 std::ofstream sendLogFile, recvLogFile;
 std::string testFilePath = "testfile/"; // 测试文件的存储路径
